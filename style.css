@@ -93,6 +93,42 @@ h2 { font-size: 1.15rem; }
 .center { text-align: center; }
 .warn { color: var(--amber); font-weight: 700; }
 
+/* JAL Airline Brand Enhancements */
+:root, :root[data-theme="light"] {
+  --primary: #c8102e; /* JAL Signature Red */
+  --on-primary: #ffffff;
+  --blue: #c8102e;    /* Align interactive highlights with JAL red */
+}
+
+:root[data-theme="dark"] {
+  --primary: #ff334b;
+  --on-primary: #0f172a;
+  --blue: #ff4d5e;
+}
+
+/* Refined Action Card Image Container */
+.emoji-wrap {
+  width: 92px; 
+  height: 92px; 
+  border-radius: 24px; 
+  display: grid; 
+  place-items: center; 
+  overflow: hidden;
+  background: rgba(200, 16, 46, 0.08); 
+  transition: transform 0.25s var(--ease), background 0.25s ease;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Boarding pass hero polish */
+.pass {
+  border-top: 4px solid var(--red);
+}
+
 button, input, select, textarea { font: inherit; color: inherit; }
 input, select, textarea {
   background: var(--input-bg);
@@ -116,11 +152,34 @@ textarea { width: 100%; resize: vertical; min-height: 96px; }
   backdrop-filter: blur(16px) saturate(140%);
 }
 
-/* ===== Header ===== */
+/* ===== Dropdown (Toggle Down) Styling ===== */
+.lang-select {
+  width: 100%;
+  appearance: none;
+  background-color: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 12px 40px 12px 14px;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  cursor: pointer;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%235b6678" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.lang-select:focus {
+  border-color: var(--blue);
+  box-shadow: var(--glow-blue);
+  outline: none;
+}
+
+/* ===== JAL Corporate Header Styling ===== */
 .app-header {
   position: sticky; top: 0; z-index: 40;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 12px 20px;
+  padding: 14px 24px;
   background: var(--header-bg);
   color: var(--header-text);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -131,17 +190,15 @@ textarea { width: 100%; resize: vertical; min-height: 96px; }
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
   background: linear-gradient(90deg, var(--red), rgba(200, 16, 46, 0) 70%);
 }
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand-mark {
-  width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center;
-  background: linear-gradient(145deg, #e11d3f, #a30b25); color: #fff; font-size: 1.15rem;
-  box-shadow: 0 6px 16px -6px rgba(200, 16, 46, 0.8);
-}
-.brand-text { display: flex; flex-direction: column; line-height: 1.1; }
-.brand-text b { font-size: 1.15rem; letter-spacing: 0.01em; }
-.brand-text small { font-size: 0.74rem; color: var(--muted); }
-.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 
+.brand { display: flex; align-items: center; gap: 16px; }
+.jal-logo-img { height: 26px; width: auto; object-fit: contain; }
+.brand-divider { width: 1px; height: 24px; background: var(--glass-border); }
+.brand-flight-info { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-flight-info b { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.02em; }
+.brand-flight-info small { font-size: 0.78rem; color: var(--muted); }
+
+.header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .icon-btn {
   width: 48px; height: 48px; border-radius: 14px; font-size: 1.15rem; cursor: pointer;
   background: var(--glass); color: inherit; border: 1px solid var(--glass-border);
@@ -191,24 +248,15 @@ textarea { width: 100%; resize: vertical; min-height: 96px; }
 }
 .pass::before { left: -12px; } .pass::after { right: -12px; }
 .seat-badge {
-  background: transparent; border: 0; border-right: 2px dashed var(--glass-border); cursor: pointer;
+  background: transparent; border: 0; border-right: 2px dashed var(--glass-border); cursor: default;
   padding: 16px 28px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
   transition: background 0.2s ease;
 }
-.seat-badge:hover { background: var(--glass-hi); }
 .seat-badge-label { font-size: 0.8rem; color: var(--muted); }
 .seat-badge-num { font-size: 2.6rem; font-weight: 900; line-height: 1; letter-spacing: 0.01em; color: var(--blue); text-shadow: var(--glow-blue); }
 .pass-block { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 14px 22px; flex: 1; min-width: 0; }
 .pass-label { font-size: 0.8rem; color: var(--muted); }
 .pass-switch { padding: 0 22px; border-left: 2px dashed var(--glass-border); }
-
-.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 4px; gap: 2px; flex-wrap: wrap; }
-.seg-btn {
-  min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: transparent; font-weight: 700; cursor: pointer;
-  transition: background 0.25s ease, color 0.25s ease, box-shadow 0.25s ease, transform 0.15s var(--ease);
-}
-.seg-btn:active { transform: scale(0.95); }
-.seg-btn[aria-pressed="true"] { background: var(--primary); color: var(--on-primary); box-shadow: var(--glow-blue); }
 
 .switch { position: relative; display: inline-flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 700; font-size: 0.95rem; min-height: 48px; }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; min-height: 0; padding: 0; border: 0; }
@@ -231,7 +279,7 @@ textarea { width: 100%; resize: vertical; min-height: 96px; }
   transition: transform 0.18s var(--ease), border-color 0.25s ease, box-shadow 0.3s ease;
 }
 .emoji-wrap {
-  width: 66px; height: 66px; border-radius: 20px; display: grid; place-items: center;
+  width: 92px; height: 92px; border-radius: 24px; display: grid; place-items: center; overflow: hidden;
   background: rgba(56, 189, 248, 0.14); transition: transform 0.25s var(--ease), background 0.25s ease;
 }
 .emoji { font-size: 2.1rem; line-height: 1; }
@@ -254,7 +302,7 @@ textarea { width: 100%; resize: vertical; min-height: 96px; }
 .crew-msg-label { font-size: 0.82rem; color: var(--muted); display: flex; gap: 8px; align-items: center; }
 .crew-msg-text { font-size: 1.4rem; font-weight: 700; margin: 6px 0 10px; word-break: break-word; }
 .tag { font-size: 0.74rem; font-weight: 700; border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; color: var(--muted); background: var(--surface-2); }
-.status-actions { margin-top: 12px; }
+.status-actions { margin-top: 12px; display: flex; gap: 10px; }
 
 /* ===== Passenger: voice ===== */
 .voice-section { padding: 18px 20px; text-align: center; }
@@ -343,9 +391,6 @@ input.attention { animation: attention 1.2s ease 3; border-color: var(--amber); 
 .field label { font-weight: 700; font-size: 0.92rem; }
 .row-2 { display: flex; gap: 12px; }
 .row-2 > * { flex: 1; min-width: 0; }
-.lang-buttons { display: flex; gap: 10px; }
-.lang-buttons .btn { flex: 1; border: 2px solid var(--border); }
-.lang-buttons .btn.active { border-color: var(--blue); box-shadow: var(--glow-blue); }
 
 .toast {
   position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 90;
@@ -460,6 +505,39 @@ input.attention { animation: attention 1.2s ease 3; border-color: var(--amber); 
 @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 14px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes attention { 0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); } 50% { box-shadow: 0 0 0 6px rgba(251, 191, 36, 0.35); } }
 
+/* ===== 1. Safety Messages Banner ===== */
+.safety-banner {
+  display: flex; align-items: center; gap: 16px;
+  background: #fff3cd; color: #856404;
+  border-left: 6px solid #ffc107; padding: 16px 20px; border-radius: 12px;
+  margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+:root[data-theme="dark"] .safety-banner {
+  background: rgba(255, 193, 7, 0.15); color: #ffd54f;
+}
+.safety-icon { font-size: 1.5rem; }
+.safety-content { flex: 1; }
+.safety-content strong { display: block; font-size: 1.1rem; margin-bottom: 2px; }
+
+/* ===== 2. Show to Crew Modal (Translation Card) ===== */
+.show-crew-card {
+  background: var(--surface); border-radius: 32px; padding: 60px 40px;
+  width: 90%; max-width: 600px; text-align: center;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.2); position: relative;
+}
+.show-crew-seat { font-size: 2.5rem; font-weight: 900; color: var(--primary); margin-bottom: 30px; }
+.show-crew-ja { font-size: 3rem; font-weight: 700; color: var(--text); margin-bottom: 16px; line-height: 1.2; }
+.show-crew-en { font-size: 1.8rem; color: var(--muted); font-weight: 500; }
+.close-abs { position: absolute; top: 20px; right: 20px; }
+
+/* ===== 3. Emergency SOS Triggered Modal ===== */
+.sos-alert-card {
+  background: var(--surface); border: 4px solid var(--primary); border-radius: 24px;
+  padding: 40px 30px; width: 90%; max-width: 450px; text-align: center; position: relative;
+}
+.sos-alert-card .sos-icon { font-size: 4rem; margin-bottom: 10px; animation: pulse 1s infinite alternate; }
+.sos-alert-card h2 { color: var(--primary); font-size: 1.6rem; margin-bottom: 12px; }
+
 /* ===== Responsive ===== */
 @media (min-width: 700px) {
   .overlay { align-items: center; }
@@ -485,11 +563,13 @@ input.attention { animation: attention 1.2s ease 3; border-color: var(--amber); 
   body { font-size: 16px; }
   .shell { padding: 14px 12px 120px; }
   .app-header { padding: 10px 12px; }
-  .brand-text small { display: none; }
+  .brand-flight-info small { display: none; }
   .seat-badge { padding: 12px 18px; }
   .seat-badge-num { font-size: 2.1rem; }
-  .seg-btn { padding: 0 12px; }
   .chat-fab { right: 12px; bottom: 12px; }
+  .show-crew-card { padding: 40px 20px; }
+  .show-crew-ja { font-size: 2.2rem; }
+  .show-crew-en { font-size: 1.4rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

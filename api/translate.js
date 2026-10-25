@@ -2,8 +2,14 @@
 // Optional: set GEMINI_MODEL in Vercel if the default model name changes in Google AI Studio.
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-const LANGS = ['en', 'ja', 'hi'];
-const LANG_NAMES = { en: 'English', ja: 'Japanese', hi: 'Hindi' };
+// Add major Indian language codes
+const LANGS = ['en', 'ja', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'ur', 'or', 'as'];
+const LANG_NAMES = { 
+  en: 'English', ja: 'Japanese', hi: 'Hindi',
+  bn: 'Bengali', ta: 'Tamil', te: 'Telugu',
+  mr: 'Marathi', gu: 'Gujarati', kn: 'Kannada', ml: 'Malayalam',
+  pa: 'Punjabi', ur: 'Urdu', or: 'Odia', as: 'Assamese'
+};
 const MAX_CHARS = 300;
 const TIMEOUT_MS = 8000;
 const RATE_LIMIT_PER_MIN = 60;

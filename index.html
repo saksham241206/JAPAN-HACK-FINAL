@@ -17,8 +17,12 @@
 <body>
   <header class="app-header">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">✈</span>
-      <span class="brand-text"><b>SkyBridge</b><small>Japan Airlines</small></span>
+      <img src="logo.png" alt="JAL Logo" class="jal-logo-img">
+      <div class="brand-divider"></div>
+      <span class="brand-flight-info">
+        <b>Flight JL708</b>
+        <small>Tokyo (HND) &bull; Seat: <span id="header-seat">14C</span></small>
+      </span>
     </div>
     <div class="header-actions">
       <span class="pill" id="conn-pill">...</span>
@@ -27,15 +31,25 @@
   </header>
 
   <main class="shell">
+    <!-- 1. Safety Messages Banner (Hidden by default) -->
+    <div class="safety-banner" id="safety-banner" hidden>
+      <span class="safety-icon">⚠️</span>
+      <div class="safety-content">
+        <strong id="safety-title">Safety Message</strong>
+        <p id="safety-text">Please fasten your seatbelt while seated.</p>
+      </div>
+      <button class="icon-btn" id="safety-close" type="button" aria-label="Close">✕</button>
+    </div>
+
     <!-- Boarding-pass style hero: seat, language, read-aloud -->
     <section class="pass glass">
-      <button class="seat-badge" id="seat-chip" type="button" aria-label="Change seat">
+      <div class="seat-badge" id="seat-chip">
         <span class="seat-badge-label" data-i18n="seat"></span>
-        <span class="seat-badge-num" id="seat-num">--</span>
-      </button>
+        <span class="seat-badge-num" id="seat-num">14C</span>
+      </div>
       <div class="pass-block">
         <span class="pass-label" data-i18n="language"></span>
-        <div class="seg" id="lang-seg" role="group" aria-label="Language"></div>
+        <select id="lang-seg" class="lang-select" aria-label="Language"></select>
       </div>
       <label class="switch pass-switch">
         <input type="checkbox" id="auto-read">
@@ -56,7 +70,10 @@
             <div class="crew-msg-label"><span data-i18n="crew_says"></span><span class="tag" id="crew-ai-tag"></span></div>
             <div class="crew-msg-text" id="crew-msg-text"></div>
           </div>
-          <div class="status-actions"><button class="btn btn-ghost" id="speak-btn" type="button" data-i18n="speak"></button></div>
+          <div class="status-actions">
+            <button class="btn btn-ghost" id="speak-btn" type="button" data-i18n="speak"></button>
+            <button class="btn btn-blue" id="trigger-show-btn" type="button" hidden>📱 Show to Crew</button>
+          </div>
         </section>
 
         <section class="voice-section glass">
@@ -97,7 +114,7 @@
 
         <button class="btn-sos" id="sos-btn" type="button">
           <span class="sos-progress" id="sos-progress"></span>
-          <span class="sos-label">🚨 <span data-i18n="sos_hold"></span></span>
+          <span class="sos-label">🚨 Hold 1s for SOS</span>
         </button>
       </aside>
     </div>
@@ -112,7 +129,7 @@
       <p class="muted" data-i18n="setup_hint"></p>
       <div class="field">
         <label data-i18n="language"></label>
-        <div class="lang-buttons" id="setup-lang"></div>
+        <select id="setup-lang" class="lang-select"></select>
       </div>
       <div class="row-2">
         <div class="field"><label for="setup-row" data-i18n="row"></label><select id="setup-row"></select></div>
@@ -144,6 +161,26 @@
     </div>
   </div>
 
+  <!-- 2. Show to Crew Modal -->
+  <div class="overlay" id="show-crew-overlay" hidden>
+    <div class="show-crew-card" role="dialog" aria-modal="true">
+      <button class="icon-btn close-abs" id="show-crew-close" type="button">✕</button>
+      <div class="show-crew-seat" id="show-crew-seat">14C</div>
+      <div class="show-crew-ja" id="show-crew-ja">...</div>
+      <div class="show-crew-en" id="show-crew-en">...</div>
+    </div>
+  </div>
+
+  <!-- 3. Emergency SOS Triggered Modal -->
+  <div class="overlay" id="sos-modal" hidden>
+    <div class="sos-alert-card" role="dialog" aria-modal="true">
+      <button class="icon-btn close-abs" id="sos-modal-close" type="button">✕</button>
+      <div class="sos-icon">🚨</div>
+      <h2>Emergency SOS Triggered</h2>
+      <p>The cabin crew and Chief Purser have been notified immediately. Please remain calm.</p>
+    </div>
+  </div>
+
   <div class="toast" id="toast" hidden role="status"></div>
 
   <script src="phrases.js"></script>
@@ -151,7 +188,14 @@
   <script>
     const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
     const MAX_ROW = 30;
-    const ICONS = [['water', '💧'], ['meal', '🍱'], ['blanket', '🛌'], ['restroom', '🚻'], ['unwell', '🩺'], ['ask', '🙋']];
+    const ICONS = [
+      ['water', '💧', 'image.png'],
+      ['meal', '🍱', 'meal.jpg'],
+      ['blanket', '🛌'],
+      ['restroom', '🚻'],
+      ['unwell', '🩺'],
+      ['ask', '🙋']
+    ];
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     const HAS_TTS = 'speechSynthesis' in window && typeof window.SpeechSynthesisUtterance === 'function';
 
@@ -165,6 +209,7 @@
     let busy = false;
     let sosLocked = false, sosTimer = null, sosStart = 0;
     let autoRead = false;
+    let lastRequestType = null;      // Tracks last request for "Show to Crew" feature
 
     // voice state
     let rec = null, recMode = null, wakeOn = false, restartTimer = null;
@@ -219,30 +264,49 @@
     }
     function applyTheme(theme) {
       document.documentElement.setAttribute('data-theme', theme);
-      $('theme-btn').textContent = theme === 'dark' ? '☀️' : '🌙';
+      if($('theme-btn')) $('theme-btn').textContent = theme === 'dark' ? '☀️' : '🌙';
       lsSet('sb_theme', theme);
     }
     function setConn(ok) {
       const p = $('conn-pill');
+      if(!p) return;
       p.className = 'pill ' + (ok ? 'ok' : 'bad');
       p.textContent = ok ? t('live') : t('reconnecting');
     }
     function isMine(r) { return !!seat && r.seat_row === seat.row && r.seat_letter === seat.letter; }
-    function updateSeatChip() { $('seat-num').textContent = seat ? seat.row + seat.letter : '--'; }
+    function updateSeatChip() { 
+      const seatStr = seat ? seat.row + seat.letter : '--';
+      if($('seat-num')) $('seat-num').textContent = seatStr; 
+      if($('header-seat')) $('header-seat').textContent = seatStr;
+    }
 
     /* ---------- language ---------- */
     function renderLangSeg() {
       const box = $('lang-seg');
-      box.textContent = '';
+      if(!box) return;
+      box.innerHTML = ''; // Clear existing
       Object.keys(PHRASES.languages).forEach((code) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'seg-btn';
-        b.textContent = PHRASES.languages[code];
-        b.setAttribute('aria-pressed', code === currentLang ? 'true' : 'false');
-        b.addEventListener('click', () => setLang(code));
-        box.appendChild(b);
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = PHRASES.languages[code];
+        if (code === currentLang) opt.selected = true;
+        box.appendChild(opt);
       });
+      box.onchange = (e) => setLang(e.target.value);
+    }
+
+    function renderSetupLang() {
+      const box = $('setup-lang');
+      if(!box) return;
+      box.innerHTML = ''; // Clear existing
+      Object.keys(PHRASES.languages).forEach((code) => {
+        const opt = document.createElement('option');
+        opt.value = code;
+        opt.textContent = PHRASES.languages[code];
+        if (code === currentLang) opt.selected = true;
+        box.appendChild(opt);
+      });
+      box.onchange = (e) => setLang(e.target.value);
     }
     function setLang(code) {
       if (!PHRASES.languages[code]) return;
@@ -260,18 +324,31 @@
     /* ---------- icons and status ---------- */
     function renderIcons() {
       const grid = $('icon-grid');
+      if(!grid) return;
       grid.textContent = '';
-      ICONS.forEach(([type, emoji]) => {
+      ICONS.forEach((item) => {
+        const [type, emoji, imgSrc] = item;
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'action-card';
         b.dataset.type = type;
+        
         const wrap = document.createElement('span');
         wrap.className = 'emoji-wrap';
-        const s = document.createElement('span');
-        s.className = 'emoji';
-        s.textContent = emoji;
-        wrap.appendChild(s);
+        
+        if (imgSrc) {
+          const img = document.createElement('img');
+          img.src = imgSrc;
+          img.alt = type;
+          img.className = 'card-img';
+          wrap.appendChild(img);
+        } else {
+          const s = document.createElement('span');
+          s.className = 'emoji';
+          s.textContent = emoji;
+          wrap.appendChild(s);
+        }
+        
         b.append(wrap, document.createTextNode(PHRASES.labels[type][currentLang]));
         b.addEventListener('click', () => sendRequest(type));
         grid.appendChild(b);
@@ -279,6 +356,7 @@
     }
     function setStatus(line, crew, state) {
       const box = $('status-box');
+      if(!box) return;
       box.hidden = false;
       box.dataset.state = state || 'waiting';
       $('status-line').textContent = line;
@@ -292,7 +370,7 @@
       }
       box.classList.remove('flash'); void box.offsetWidth; box.classList.add('flash');
     }
-    function hideStatus() { $('status-box').hidden = true; }
+    function hideStatus() { if($('status-box')) $('status-box').hidden = true; }
 
     /* ---------- text to speech (read aloud) ---------- */
     function pickVoice(code) {
@@ -322,22 +400,10 @@
 
     /* ---------- seat setup ---------- */
     function openSetup() {
-      $('setup-row').value = String(seat ? seat.row : 1);
-      $('setup-letter').value = seat ? seat.letter : 'A';
+      if($('setup-row')) $('setup-row').value = String(seat ? seat.row : 1);
+      if($('setup-letter')) $('setup-letter').value = seat ? seat.letter : 'A';
       renderSetupLang();
       openOverlay('setup-overlay');
-    }
-    function renderSetupLang() {
-      const box = $('setup-lang');
-      box.textContent = '';
-      Object.keys(PHRASES.languages).forEach((code) => {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'btn' + (code === currentLang ? ' active' : '');
-        b.textContent = PHRASES.languages[code];
-        b.addEventListener('click', () => setLang(code));
-        box.appendChild(b);
-      });
     }
     function saveSetup() {
       seat = { row: parseInt($('setup-row').value, 10), letter: $('setup-letter').value };
@@ -366,12 +432,30 @@
           type: type, language: currentLang, status: 'waiting'
         }]);
         if (r.error) throw r.error;
+        
+        lastRequestType = type;
+        if ($('trigger-show-btn')) $('trigger-show-btn').hidden = false;
+
         if (type === 'unwell') setStatus(t('unwell_sent'), null, 'sos');
       } catch (e) {
         console.error(e);
         hideStatus();
         toast(t('send_fail'));
       }
+    }
+
+    /* ---------- show to crew ---------- */
+    function showToCrew() {
+      if (!lastRequestType || !seat) return;
+      
+      const itemEn = PHRASES.labels[lastRequestType]['en'];
+      const itemJa = PHRASES.labels[lastRequestType]['ja'];
+      
+      if($('show-crew-seat')) $('show-crew-seat').textContent = seat.row + seat.letter;
+      if($('show-crew-en')) $('show-crew-en').textContent = itemEn;
+      if($('show-crew-ja')) $('show-crew-ja').textContent = itemJa;
+      
+      openOverlay('show-crew-overlay');
     }
 
     /* ---------- realtime ---------- */
@@ -413,14 +497,14 @@
       sosStart = performance.now();
       sosTimer = setInterval(() => {
         const pct = Math.min(100, (performance.now() - sosStart) / 10);
-        $('sos-progress').style.width = pct + '%';
+        if($('sos-progress')) $('sos-progress').style.width = pct + '%';
         if (pct >= 100) { cancelSosHold(); triggerSOS(); }
       }, 20);
     }
     function cancelSosHold() {
       clearInterval(sosTimer);
       sosTimer = null;
-      $('sos-progress').style.width = '0%';
+      if($('sos-progress')) $('sos-progress').style.width = '0%';
     }
     async function triggerSOS() {
       if (!seat) { openSetup(); return; }
@@ -430,7 +514,8 @@
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
       const { error } = await supabaseClient.from('alerts').insert([{ seat_row: seat.row, seat_letter: seat.letter, kind: 'sos' }]);
       if (error) { console.error(error); sosLocked = false; toast(t('send_fail')); return; }
-      setStatus(t('sos_sent'), null, 'sos');
+      
+      openOverlay('sos-modal');
     }
 
     /* ---------- voice: environment checks and graceful fallback ---------- */
@@ -451,18 +536,22 @@
     function showVoiceNote(key) {
       voiceNoteKey = key;
       const n = $('voice-note');
-      n.textContent = t(key);
-      n.hidden = false;
+      if(n) {
+        n.textContent = t(key);
+        n.hidden = false;
+      }
     }
     function clearVoiceNote() {
       voiceNoteKey = null;
-      $('voice-note').hidden = true;
+      if($('voice-note')) $('voice-note').hidden = true;
     }
     function markVoiceUnavailable(key) {
       voiceBlocked = key;
-      $('mic-btn').classList.add('unavailable');
-      $('wake-toggle').checked = false;
-      $('wake-toggle').disabled = true;
+      if($('mic-btn')) $('mic-btn').classList.add('unavailable');
+      if($('wake-toggle')) {
+        $('wake-toggle').checked = false;
+        $('wake-toggle').disabled = true;
+      }
       wakeOn = false;
       showVoiceNote(key);
     }
@@ -471,6 +560,7 @@
       showVoiceNote(key);
       setMicUI(false);
       const input = $('typed-input');
+      if(!input) return;
       input.classList.remove('attention'); void input.offsetWidth; input.classList.add('attention');
       setTimeout(() => input.classList.remove('attention'), 4000);
       input.focus();
@@ -478,14 +568,14 @@
     }
 
     /* ---------- voice: live feedback ---------- */
-    function currentLiveKey() { return $('live-panel').dataset.state || 'live_idle'; }
+    function currentLiveKey() { return $('live-panel') ? $('live-panel').dataset.state || 'live_idle' : 'live_idle'; }
     function setLive(key, text) {
-      $('live-panel').dataset.state = key;
-      $('live-state').textContent = t(key);
-      $('live-text').textContent = text || '';
+      if($('live-panel')) $('live-panel').dataset.state = key;
+      if($('live-state')) $('live-state').textContent = t(key);
+      if($('live-text')) $('live-text').textContent = text || '';
     }
     function idleLive() { setLive(wakeOn ? 'live_wake' : 'live_idle', ''); }
-    function setMicUI(on) { $('mic-btn').classList.toggle('recording', on); }
+    function setMicUI(on) { if($('mic-btn')) $('mic-btn').classList.toggle('recording', on); }
 
     /* ---------- voice: recogniser control ---------- */
     function stopRec() {
@@ -543,7 +633,7 @@
       }
       if (err === 'not-allowed' || err === 'service-not-allowed') {
         wakeOn = false;
-        $('wake-toggle').checked = false;
+        if($('wake-toggle')) $('wake-toggle').checked = false;
         stopRec();
         markVoiceUnavailable('mic_blocked');
         idleLive();
@@ -555,7 +645,7 @@
       if (mode === 'ptt') { voiceFallback(key); return; }
       if (errCount >= (err === 'network' ? 2 : 5)) {
         wakeOn = false;
-        $('wake-toggle').checked = false;
+        if($('wake-toggle')) $('wake-toggle').checked = false;
         stopRec();
         idleLive();
         voiceFallback(key);
@@ -650,19 +740,21 @@
       showConfirm();
     }
     function showConfirm() {
-      $('confirm-back').textContent = pending.back;
-      $('confirm-ja').textContent = pending.ja || '';
-      $('confirm-ja-row').hidden = !pending.translated;
+      if($('confirm-back')) $('confirm-back').textContent = pending.back;
+      if($('confirm-ja')) $('confirm-ja').textContent = pending.ja || '';
+      if($('confirm-ja-row')) $('confirm-ja-row').hidden = !pending.translated;
       const warn = $('confirm-warn');
-      warn.hidden = pending.translated;
-      warn.textContent = pending.translated ? '' : t('translate_down');
-      $('confirm-box').hidden = false;
+      if(warn) {
+        warn.hidden = pending.translated;
+        warn.textContent = pending.translated ? '' : t('translate_down');
+      }
+      if($('confirm-box')) $('confirm-box').hidden = false;
       setLive('live_busy', '');
       clearTimeout(confirmTimer);
       confirmTimer = setTimeout(() => {      // nobody answered: drop it so wake mode never stays stuck
         if (!pending) return;
         pending = null;
-        $('confirm-box').hidden = true;
+        if($('confirm-box')) $('confirm-box').hidden = true;
         idleLive();
         toast(t('timed_out'));
       }, 45000);
@@ -671,7 +763,7 @@
       if (!pending) return;
       clearTimeout(confirmTimer);
       const p = pending;
-      $('confirm-box').hidden = true;
+      if($('confirm-box')) $('confirm-box').hidden = true;
       if (!yes) { pending = null; idleLive(); toast(t('cancelled')); return; }
       if (!seat) { pending = null; openSetup(); return; }
       setStatus(t('waiting'), null, 'waiting');
@@ -692,7 +784,7 @@
       if (pending || translating) { setLive('live_busy', ''); return; }
       const env = voiceBlocked || micEnvironment();
       if (env) { voiceFallback(env); return; }
-      try { $('mic-btn').setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
+      try { if($('mic-btn')) $('mic-btn').setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
       pttAt = Date.now();
       if (startRec('ptt')) {
         setMicUI(true);
@@ -707,19 +799,20 @@
       if (rec && recMode === 'ptt' && Date.now() - pttAt >= 450) { try { rec.stop(); } catch (e) { /* not started */ } }
     }
     function toggleWake() {
-      const on = $('wake-toggle').checked;
+      const on = $('wake-toggle') ? $('wake-toggle').checked : false;
       const env = voiceBlocked || micEnvironment();
-      if (on && env) { $('wake-toggle').checked = false; voiceFallback(env); return; }
+      if (on && env) { if($('wake-toggle')) $('wake-toggle').checked = false; voiceFallback(env); return; }
       wakeOn = on;
       errCount = 0;
       armedUntil = 0;
-      if (on) { if (!startRec('wake')) { wakeOn = false; $('wake-toggle').checked = false; voiceFallback('voice_fallback'); return; } }
+      if (on) { if (!startRec('wake')) { wakeOn = false; if($('wake-toggle')) $('wake-toggle').checked = false; voiceFallback('voice_fallback'); return; } }
       else { stopRec(); }
       idleLive();
     }
     function submitTyped(ev) {
       ev.preventDefault();
       const input = $('typed-input');
+      if(!input) return;
       const text = input.value.trim();
       if (!text) return;
       input.value = '';
@@ -729,13 +822,15 @@
     /* ---------- Seat Connect chat ---------- */
     function defaultChatPeer() {
       if (!seat) return;
-      $('chat-row').value = String(seat.row);
-      $('chat-letter').value = LETTERS[(LETTERS.indexOf(seat.letter) + 1) % LETTERS.length];
+      if($('chat-row')) $('chat-row').value = String(seat.row);
+      if($('chat-letter')) $('chat-letter').value = LETTERS[(LETTERS.indexOf(seat.letter) + 1) % LETTERS.length];
     }
-    function chatIsOpen() { return $('chat-overlay').classList.contains('show'); }
+    function chatIsOpen() { return $('chat-overlay') && $('chat-overlay').classList.contains('show'); }
     function updateBadge() {
-      $('chat-badge').hidden = chatUnread === 0;
-      $('chat-badge').textContent = String(chatUnread);
+      if($('chat-badge')) {
+        $('chat-badge').hidden = chatUnread === 0;
+        $('chat-badge').textContent = String(chatUnread);
+      }
     }
     function fromMe(m) { return !!seat && m.from_row === seat.row && m.from_letter === seat.letter; }
     function toMe(m) { return !!seat && m.to_row === seat.row && m.to_letter === seat.letter; }
@@ -760,6 +855,7 @@
     }
     function renderChat() {
       const list = $('chat-list');
+      if(!list) return;
       list.textContent = '';
       if (!seat) return;
       if (!chatMsgs.length) {
@@ -797,8 +893,8 @@
       if (!fromMe(m) && !toMe(m)) return;
       addChatMsg(m);
       if (toMe(m)) {
-        $('chat-row').value = String(m.from_row);     // reply goes back to the sender by default
-        $('chat-letter').value = m.from_letter;
+        if($('chat-row')) $('chat-row').value = String(m.from_row);     // reply goes back to the sender by default
+        if($('chat-letter')) $('chat-letter').value = m.from_letter;
         if (!chatIsOpen()) {
           chatUnread++;
           updateBadge();
@@ -811,16 +907,17 @@
       ev.preventDefault();
       if (!seat) { openSetup(); return; }
       const input = $('chat-input');
+      if(!input) return;
       const text = input.value.trim();
-      const toRow = parseInt($('chat-row').value, 10);
-      const toLetter = $('chat-letter').value;
+      const toRow = parseInt($('chat-row') ? $('chat-row').value : "0", 10);
+      const toLetter = $('chat-letter') ? $('chat-letter').value : "";
       if (!text) return;
       if (toRow === seat.row && toLetter === seat.letter) { toast(t('same_seat')); return; }
       const now = Date.now();
       if (now - chatSendAt < 1500) return;
       chatSendAt = now;
       const btn = $('chat-send');
-      btn.disabled = true;
+      if(btn) btn.disabled = true;
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 10000);
@@ -847,25 +944,24 @@
         console.error(e);
         toast(t('send_fail'));
       } finally {
-        btn.disabled = false;
+        if(btn) btn.disabled = false;
       }
     }
 
     /* ---------- init ---------- */
     function fillSelect(sel, values) {
+      if(!sel) return;
       values.forEach((v) => { const o = document.createElement('option'); o.value = String(v); o.textContent = String(v); sel.appendChild(o); });
     }
     function init() {
-      const rows = Array.from({ length: MAX_ROW }, (_, i) => i + 1);
-      ['setup-row', 'chat-row'].forEach((id) => fillSelect($(id), rows));
-      ['setup-letter', 'chat-letter'].forEach((id) => fillSelect($(id), LETTERS));
+      // --- FIXED SEAT (Locked from backend/code) ---
+      seat = { row: 14, letter: 'C' };
 
       const savedLang = lsGet('sb_lang');
       if (savedLang && PHRASES.languages[savedLang]) currentLang = savedLang;
-      const r = parseInt(lsGet('sb_row'), 10), l = lsGet('sb_letter');
-      if (r >= 1 && r <= MAX_ROW && LETTERS.includes(l)) seat = { row: r, letter: l };
+      
       autoRead = lsGet('sb_autoread') === '1';
-      $('auto-read').checked = autoRead;
+      if ($('auto-read')) $('auto-read').checked = autoRead;
 
       applyTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
       renderLangSeg();
@@ -874,45 +970,69 @@
       defaultChatPeer();
       setConn(false);
       idleLive();
-      if (!HAS_TTS) { $('speak-btn').hidden = true; $('auto-read').closest('label').hidden = true; }
 
-      // Decide up front whether voice can work here, and say so clearly instead of failing later.
+      if (!HAS_TTS) { 
+        if ($('speak-btn')) $('speak-btn').hidden = true; 
+        if ($('auto-read')) $('auto-read').closest('label').hidden = true; 
+      }
+
       const env = micEnvironment();
       if (env) markVoiceUnavailable(env);
       else checkMicPermission().then((k) => { if (k) markVoiceUnavailable(k); });
 
-      $('theme-btn').addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
-      $('seat-chip').addEventListener('click', openSetup);
-      $('setup-save').addEventListener('click', saveSetup);
-      $('speak-btn').addEventListener('click', speakCurrent);
-      $('auto-read').addEventListener('change', (e) => {
-        autoRead = e.target.checked;
-        lsSet('sb_autoread', autoRead ? '1' : '0');
-        if (autoRead) speak(' ');     // primes the speech engine inside a user gesture
-      });
+      // Populate dropdowns to prevent crashes
+      if ($('setup-row')) fillSelect($('setup-row'), Array.from({length: MAX_ROW}, (_, i) => i + 1));
+      if ($('setup-letter')) fillSelect($('setup-letter'), LETTERS);
+      if ($('chat-row')) fillSelect($('chat-row'), Array.from({length: MAX_ROW}, (_, i) => i + 1));
+      if ($('chat-letter')) fillSelect($('chat-letter'), LETTERS);
 
+      // Base Listeners
+      if ($('theme-btn')) {
+        $('theme-btn').addEventListener('click', () => applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+      }
+      if ($('speak-btn')) $('speak-btn').addEventListener('click', speakCurrent);
+      if ($('auto-read')) {
+        $('auto-read').addEventListener('change', (e) => {
+          autoRead = e.target.checked;
+          lsSet('sb_autoread', autoRead ? '1' : '0');
+          if (autoRead) speak(' ');
+        });
+      }
+
+      // 1. Voice & Mic Listeners
       const mic = $('mic-btn');
-      mic.addEventListener('pointerdown', pttDown);
-      mic.addEventListener('pointerup', pttUp);
-      mic.addEventListener('pointercancel', pttUp);
-      mic.addEventListener('contextmenu', (e) => e.preventDefault());
-      $('wake-toggle').addEventListener('change', toggleWake);
-      $('typed-form').addEventListener('submit', submitTyped);
-      $('confirm-yes').addEventListener('click', () => confirmVoice(true));
-      $('confirm-no').addEventListener('click', () => confirmVoice(false));
+      if (mic) {
+        mic.addEventListener('pointerdown', pttDown);
+        ['pointerup', 'pointercancel'].forEach((ev) => mic.addEventListener(ev, pttUp));
+      }
+      if ($('wake-toggle')) $('wake-toggle').addEventListener('change', toggleWake);
+      if ($('typed-form')) $('typed-form').addEventListener('submit', submitTyped);
 
+      // 2. Voice Confirmation Listeners
+      if ($('confirm-yes')) $('confirm-yes').addEventListener('click', () => confirmVoice(true));
+      if ($('confirm-no')) $('confirm-no').addEventListener('click', () => confirmVoice(false));
+
+      // 3. Chat Listeners
+      if ($('chat-fab')) $('chat-fab').addEventListener('click', openChat);
+      if ($('chat-close')) $('chat-close').addEventListener('click', () => closeOverlay('chat-overlay'));
+      if ($('chat-form')) $('chat-form').addEventListener('submit', sendChat);
+
+      // 4. SOS Button Listeners
       const sos = $('sos-btn');
-      sos.addEventListener('pointerdown', startSosHold);
-      ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => sos.addEventListener(ev, cancelSosHold));
-      sos.addEventListener('contextmenu', (e) => e.preventDefault());
+      if (sos) {
+        sos.addEventListener('pointerdown', startSosHold);
+        ['pointerup', 'pointercancel'].forEach((ev) => sos.addEventListener(ev, cancelSosHold));
+        sos.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+      
+      // 5. New Features Listeners
+      if ($('show-crew-close')) $('show-crew-close').addEventListener('click', () => closeOverlay('show-crew-overlay'));
+      if ($('sos-modal-close')) $('sos-modal-close').addEventListener('click', () => closeOverlay('sos-modal'));
+      if ($('safety-close')) $('safety-close').addEventListener('click', () => $('safety-banner').hidden = true);
+      if ($('trigger-show-btn')) $('trigger-show-btn').addEventListener('click', showToCrew);
 
-      $('chat-fab').addEventListener('click', openChat);
-      $('chat-close').addEventListener('click', () => closeOverlay('chat-overlay'));
-      $('chat-overlay').addEventListener('click', (e) => { if (e.target === $('chat-overlay')) closeOverlay('chat-overlay'); });
-      $('chat-form').addEventListener('submit', sendChat);
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && chatIsOpen()) closeOverlay('chat-overlay'); });
-
-      if (seat) subscribeLive(); else openSetup();
+      updateSeatChip();
+      subscribeLive();
     }
     window.addEventListener('load', init);
   </script>
