@@ -1,7 +1,7 @@
 // Vercel serverless function. The Gemini key lives only in the GEMINI_API_KEY environment variable.
 // Optional: set GEMINI_MODEL in Vercel if the default model name changes in Google AI Studio.
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 // Add major Indian language codes
 const LANGS = ['en', 'ja', 'hi', 'bn', 'ta', 'te', 'mr', 'gu', 'kn', 'ml', 'pa', 'ur', 'or', 'as'];
 const LANG_NAMES = { 
